@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Japanese Flashcards</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #0d0d14;
+      --sidebar-bg: #13131f;
+      --card-bg:    #1a1a2e;
+      --card-bg2:   #1e1e35;
+      --accent:     #c084fc;
+      --accent2:    #818cf8;
+      --border:     #2a2a45;
+      --text:       #f0f0ff;
+      --muted:      #7474a0;
+      --hint:       #3a3a5c;
+    }
+
+    html, body {
+      height: 100%;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    /* ── Header ─────────────────────────────────────────────── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      height: 52px;
+      background: var(--sidebar-bg);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .logo {
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: var(--text);
+    }
+    .logo span { color: var(--accent); }
+
+    /* Toggle pill */
+    .toggle-pill {
+      display: flex;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 3px;
+      gap: 2px;
+    }
+    .toggle-pill button {
+      padding: 5px 16px;
+      border: none;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .toggle-pill button.active {
+      background: var(--accent);
+      color: #0d0d14;
+    }
+
+    /* ── Body layout ─────────────────────────────────────────── */
+    .layout {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── Sidebar ─────────────────────────────────────────────── */
+    sidebar {
+      display: block;
+      width: 168px;
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+
+    .sidebar-label {
+      padding: 16px 16px 8px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--muted);
+    }
+
+    .batch-item {
+      padding: 11px 16px;
+      cursor: pointer;
+      border-left: 3px solid transparent;
+      transition: background 0.1s;
+    }
+    .batch-item:hover { background: rgba(255,255,255,0.03); }
+    .batch-item.active {
+      border-left-color: var(--accent);
+      background: rgba(192,132,252,0.07);
+    }
+    .batch-item .b-name {
+      font-size: 0.88rem;
+      font-weight: 500;
+      color: var(--text);
+    }
+    .batch-item.active .b-name { color: var(--accent); font-weight: 700; }
+    .batch-item .b-theme {
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+    .batch-item.active .b-theme { color: #a78bfa; }
+
+    /* ── Card area ───────────────────────────────────────────── */
+    .card-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 24px;
+      gap: 20px;
+    }
+
+    /* Progress */
+    .prog-row {
+      width: 100%;
+      max-width: 500px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .prog-label {
+      font-size: 0.75rem;
+      color: var(--muted);
+      min-width: 64px;
+      text-align: right;
+    }
+    .prog-track {
+      flex: 1;
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .prog-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent2), var(--accent));
+      border-radius: 2px;
+      transition: width 0.35s ease;
+    }
+
+    /* ── Flashcard ───────────────────────────────────────────── */
+    .card-wrap {
+      width: 100%;
+      max-width: 500px;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      cursor: pointer;
+    }
+
+    .card {
+      width: 100%;
+      aspect-ratio: 3 / 2;
+      background: var(--card-bg);
+      border: 1.5px solid var(--border);
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .card.revealed {
+      border-color: var(--accent);
+      background: var(--card-bg2);
+    }
+
+    /* Corner label */
+    .c-label {
+      position: absolute;
+      top: 16px;
+      left: 20px;
+      font-size: 0.62rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--hint);
+    }
+
+    /* Hint text */
+    .c-hint {
+      position: absolute;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.68rem;
+      color: var(--hint);
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    /* ── Japanese side ───────────────────────────────────────── */
+    .jp-side {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    .jp-graphic {
+      position: absolute;
+      font-size: 130px;
+      line-height: 1;
+      opacity: 0.22;
+      pointer-events: none;
+      filter: saturate(0.7);
+      /* offset slightly right to let kanji breathe on the left */
+      transform: translate(8px, 4px);
+    }
+
+    .jp-text {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+    }
+
+    /* The ruby/kanji */
+    ruby {
+      font-size: clamp(3rem, 12vw, 5.5rem);
+      font-weight: 800;
+      color: var(--text);
+      line-height: 1.6;
+    }
+    rt {
+      font-size: 0.3em;
+      font-weight: 400;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+    }
+
+    /* ── English side ────────────────────────────────────────── */
+    .en-side {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      padding: 24px 36px;
+    }
+
+    .en-text {
+      font-size: clamp(1.6rem, 6vw, 2.8rem);
+      font-weight: 300;
+      color: var(--text);
+      text-align: center;
+      letter-spacing: -0.01em;
+    }
+
+
+    /* ── Responsive ──────────────────────────────────────────── */
+    @media (max-width: 560px) {
+      sidebar { width: 120px; }
+      .card-area { padding: 20px 12px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🌸 <span>Nihongo</span> Cards</div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <input id="api-key-input" type="password" placeholder="OpenAI API key"
+      style="background:#0d0d14;border:1px solid var(--border);color:var(--text);
+             border-radius:8px;padding:5px 10px;font-size:0.8rem;width:200px;outline:none;">
+    <div class="toggle-pill">
+      <button id="btn-jp" class="active">JP → EN</button>
+      <button id="btn-en">EN → JP</button>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+  <sidebar>
+    <div class="sidebar-label">Batches</div>
+    <div id="batch-list"></div>
+  </sidebar>
+
+  <div class="card-area">
+    <div class="prog-row" id="prog-row" style="visibility:hidden">
+      <span class="prog-label" id="prog-label">1 / 10</span>
+      <div class="prog-track"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+    </div>
+    <div class="card-wrap" id="card-wrap"></div>
+  </div>
+</div>
+
+<script>
+// ── Word data ──────────────────────────────────────────────────────────────
+const BATCHES = [
+  {
+    name: 'Batch 1', theme: 'Nature',
+    words: [
+      { k: '山', r: 'やま', en: 'Mountain', g: '🏔️' },
+      { k: '川', r: 'かわ', en: 'River',    g: '🌊' },
+      { k: '木', r: 'き',   en: 'Tree',     g: '🌳' },
+      { k: '火', r: 'ひ',   en: 'Fire',     g: '🔥' },
+      { k: '水', r: 'みず', en: 'Water',    g: '💧' },
+    ]
+  },
+  {
+    name: 'Batch 2', theme: 'Nature',
+    words: [
+      { k: '空', r: 'そら', en: 'Sky',      g: '🌤️' },
+      { k: '花', r: 'はな', en: 'Flower',   g: '🌸' },
+      { k: '月', r: 'つき', en: 'Moon',     g: '🌙' },
+      { k: '日', r: 'ひ',   en: 'Sun',      g: '☀️' },
+      { k: '石', r: 'いし', en: 'Stone',    g: '🪨' },
+    ]
+  },
+  {
+    name: 'Batch 3', theme: 'Animals',
+    words: [
+      { k: '犬', r: 'いぬ',   en: 'Dog',   g: '🐕' },
+      { k: '猫', r: 'ねこ',   en: 'Cat',   g: '🐈' },
+      { k: '鳥', r: 'とり',   en: 'Bird',  g: '🐦' },
+      { k: '魚', r: 'さかな', en: 'Fish',  g: '🐟' },
+      { k: '馬', r: 'うま',   en: 'Horse', g: '🐴' },
+    ]
+  },
+  {
+    name: 'Batch 4', theme: 'Animals',
+    words: [
+      { k: '牛', r: 'うし',   en: 'Cow',    g: '🐄' },
+      { k: '豚', r: 'ぶた',   en: 'Pig',    g: '🐷' },
+      { k: '熊', r: 'くま',   en: 'Bear',   g: '🐻' },
+      { k: '兎', r: 'うさぎ', en: 'Rabbit', g: '🐰' },
+      { k: '虎', r: 'とら',   en: 'Tiger',  g: '🐯' },
+    ]
+  },
+  {
+    name: 'Batch 5', theme: 'Food & Drink',
+    words: [
+      { k: '米',   r: 'こめ',   en: 'Rice (raw)',  g: '🌾' },
+      { k: '飯',   r: 'めし',   en: 'Cooked Rice', g: '🍚' },
+      { k: '肉',   r: 'にく',   en: 'Meat',        g: '🥩' },
+      { k: '卵',   r: 'たまご', en: 'Egg',         g: '🥚' },
+      { k: '茶',   r: 'ちゃ',   en: 'Tea',         g: '🍵' },
+    ]
+  },
+  {
+    name: 'Batch 6', theme: 'Food & Drink',
+    words: [
+      { k: '酒',   r: 'さけ',   en: 'Sake',    g: '🍶' },
+      { k: '塩',   r: 'しお',   en: 'Salt',    g: '🧂' },
+      { k: '麺',   r: 'めん',   en: 'Noodles', g: '🍜' },
+      { k: '豆腐', r: 'とうふ', en: 'Tofu',    g: '⬜' },
+      { k: '砂糖', r: 'さとう', en: 'Sugar',   g: '🍬' },
+    ]
+  },
+  {
+    name: 'Batch 7', theme: 'Body',
+    words: [
+      { k: '目', r: 'め',     en: 'Eye',   g: '👁️' },
+      { k: '耳', r: 'みみ',   en: 'Ear',   g: '👂' },
+      { k: '口', r: 'くち',   en: 'Mouth', g: '👄' },
+      { k: '鼻', r: 'はな',   en: 'Nose',  g: '👃' },
+      { k: '手', r: 'て',     en: 'Hand',  g: '✋' },
+    ]
+  },
+  {
+    name: 'Batch 8', theme: 'Body',
+    words: [
+      { k: '足', r: 'あし',   en: 'Foot',        g: '🦶' },
+      { k: '頭', r: 'あたま', en: 'Head',         g: '🧠' },
+      { k: '心', r: 'こころ', en: 'Heart',        g: '💜' },
+      { k: '歯', r: 'は',     en: 'Tooth',        g: '🦷' },
+      { k: '顔', r: 'かお',   en: 'Face',         g: '😶' },
+    ]
+  },
+  {
+    name: 'Batch 9', theme: 'Numbers',
+    words: [
+      { k: '一', r: 'いち', en: 'One',   g: '1️⃣' },
+      { k: '二', r: 'に',   en: 'Two',   g: '2️⃣' },
+      { k: '三', r: 'さん', en: 'Three', g: '3️⃣' },
+      { k: '四', r: 'よん', en: 'Four',  g: '4️⃣' },
+      { k: '五', r: 'ご',   en: 'Five',  g: '5️⃣' },
+    ]
+  },
+  {
+    name: 'Batch 10', theme: 'Numbers',
+    words: [
+      { k: '六', r: 'ろく',   en: 'Six',   g: '6️⃣' },
+      { k: '七', r: 'なな',   en: 'Seven', g: '7️⃣' },
+      { k: '八', r: 'はち',   en: 'Eight', g: '8️⃣' },
+      { k: '九', r: 'きゅう', en: 'Nine',  g: '9️⃣' },
+      { k: '十', r: 'じゅう', en: 'Ten',   g: '🔟' },
+    ]
+  },
+  {
+    name: 'Batch 11', theme: 'Verbs',
+    words: [
+      { k: '食べる', r: 'たべる', en: 'To Eat',    g: '🍽️' },
+      { k: '飲む',   r: 'のむ',   en: 'To Drink',  g: '🥤' },
+      { k: '見る',   r: 'みる',   en: 'To See',    g: '👀' },
+      { k: '聞く',   r: 'きく',   en: 'To Listen', g: '🎧' },
+      { k: '話す',   r: 'はなす', en: 'To Speak',  g: '💬' },
+    ]
+  },
+  {
+    name: 'Batch 12', theme: 'Verbs',
+    words: [
+      { k: '書く', r: 'かく',   en: 'To Write', g: '✏️' },
+      { k: '読む', r: 'よむ',   en: 'To Read',  g: '📖' },
+      { k: '走る', r: 'はしる', en: 'To Run',   g: '🏃' },
+      { k: '寝る', r: 'ねる',   en: 'To Sleep', g: '😴' },
+      { k: '笑う', r: 'わらう', en: 'To Laugh', g: '😂' },
+    ]
+  },
+  {
+    name: 'Batch 13', theme: 'Bar & Drinks',
+    words: [
+      { k: '乾杯',   r: 'かんぱい',     en: 'Cheers!',      g: '🥂' },
+      { k: '居酒屋', r: 'いざかや',     en: 'Japanese pub', g: '🏮' },
+      { k: 'ビール', r: '',             en: 'Beer',         g: '🍺' },
+      { k: '日本酒', r: 'にほんしゅ',   en: 'Sake',         g: '🍶' },
+      { k: '焼酎',   r: 'しょうちゅう', en: 'Shochu',       g: '🥃' },
+    ]
+  },
+  {
+    name: 'Batch 14', theme: 'Bar & Drinks',
+    words: [
+      { k: 'もう一杯',   r: 'もういっぱい', en: 'One more drink', g: '🔁' },
+      { k: 'お会計',     r: 'おかいけい',   en: 'The bill',       g: '💳' },
+      { k: 'おすすめ',   r: '',             en: 'Recommendation', g: '👌' },
+      { k: '美味しい',   r: 'おいしい',     en: 'Delicious',      g: '😋' },
+      { k: 'すみません', r: '',             en: 'Excuse me',      g: '🙋' },
+    ]
+  },
+  {
+    name: 'Batch 15', theme: 'Social',
+    words: [
+      { k: 'よろしく', r: '',           en: 'Nice to meet you',   g: '🤝' },
+      { k: '友達',     r: 'ともだち',   en: 'Friend',             g: '👫' },
+      { k: '名前',     r: 'なまえ',     en: 'Name',               g: '🏷️' },
+      { k: '一緒に',   r: 'いっしょに', en: 'Together',           g: '🫂' },
+      { k: 'どこから', r: '',           en: 'Where are you from', g: '🌍' },
+    ]
+  },
+  {
+    name: 'Batch 16', theme: 'Social',
+    words: [
+      { k: 'また',       r: '',           en: 'See you again', g: '👋' },
+      { k: '大丈夫',     r: 'だいじょうぶ', en: 'OK',          g: '👍' },
+      { k: 'すごい',     r: '',           en: 'Amazing',       g: '🤩' },
+      { k: '好き',       r: 'すき',       en: 'I like it',     g: '❤️' },
+      { k: 'ありがとう', r: '',           en: 'Thank you',     g: '🙏' },
+    ]
+  },
+  {
+    name: 'Batch 17', theme: 'Slang',
+    words: [
+      { k: 'やばい',       r: '',           en: 'No way!',      g: '🤯' },
+      { k: 'マジで',       r: '',           en: 'Seriously?',   g: '😲' },
+      { k: 'かわいい',     r: '',           en: 'Cute',         g: '🥰' },
+      { k: 'かっこいい',   r: '',           en: 'Cool',         g: '😎' },
+      { k: 'うれしい',     r: '',           en: 'Happy',        g: '😊' },
+    ]
+  },
+  {
+    name: 'Batch 18', theme: 'Slang',
+    words: [
+      { k: 'ごめんなさい',   r: '',           en: 'I\'m sorry',    g: '🙇' },
+      { k: 'わかった',       r: '',           en: 'Got it',         g: '✅' },
+      { k: 'ちょっと待って', r: '',           en: 'Wait a sec',     g: '✋' },
+      { k: '面白い',         r: 'おもしろい', en: 'Funny',          g: '😄' },
+      { k: 'もう一度',       r: 'もういちど', en: 'One more time',  g: '🔄' },
+    ]
+  },
+];
+
+// ── TTS (OpenAI) ───────────────────────────────────────────────────────────
+const apiKeyInput = document.getElementById('api-key-input');
+
+// Persist key in localStorage
+const STORAGE_KEY = 'openai_api_key';
+if (localStorage.getItem(STORAGE_KEY)) apiKeyInput.value = localStorage.getItem(STORAGE_KEY);
+apiKeyInput.addEventListener('change', () => localStorage.setItem(STORAGE_KEY, apiKeyInput.value.trim()));
+
+let currentAudio = null;
+const audioCache = new Map(); // word.k → blob URL
+let lastPrefetchedBatch = -1;
+
+const TTS_BODY = (text) => JSON.stringify({
+  model: 'gpt-4o-mini-tts',
+  voice: 'coral',
+  input: text,
+  speed: 0.9,
+  instructions: 'Speak as a young Japanese girl, around 18 years old. Your voice is very light, high-pitched, and airy — like an anime character or a young idol singer. Bright and cheerful. Native Japanese accent. Enunciate each word gently and clearly.',
+});
+
+async function fetchAudioUrl(text, lang) {
+  const apiKey = apiKeyInput.value.trim();
+  if (!apiKey) return null;
+  const body = lang === 'ja'
+    ? TTS_BODY(text)
+    : JSON.stringify({ model: 'gpt-4o-mini-tts', voice: 'coral', input: text, speed: 1.0,
+        instructions: 'Speak naturally as a young woman reading a flashcard aloud.' });
+  const res = await fetch('https://api.openai.com/v1/audio/speech', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body,
+  });
+  if (!res.ok) { console.error('OpenAI TTS error:', res.status, await res.text()); return null; }
+  return URL.createObjectURL(await res.blob());
+}
+
+function playUrl(url) {
+  if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+  currentAudio = new Audio(url);
+  currentAudio.play();
+}
+
+async function speak(text, lang) {
+  const key = lang + ':' + text;
+  const cached = audioCache.get(key);
+  if (cached) { playUrl(cached); return; }
+  const url = await fetchAudioUrl(text, lang);
+  if (!url) return;
+  audioCache.set(key, url);
+  playUrl(url);
+}
+
+// Strip display-only punctuation so TTS reads naturally
+function ttsText(text) {
+  return text
+    .replace(/\s*\/\s*/g, ', ')   // "Sun / Day" → "Sun, Day"
+    .replace(/\s*&\s*/g, ' and ') // "Sake & Wine" → "Sake and Wine"
+    .replace(/\(.*?\)/g, '')      // strip parentheticals
+    .trim();
+}
+
+const speakJapanese = (text) => speak(text, 'ja');
+
+async function prefetchBatch(batchIdx) {
+  if (!apiKeyInput.value.trim()) return;
+  if (lastPrefetchedBatch === batchIdx) return;
+  lastPrefetchedBatch = batchIdx;
+  const words = BATCHES[batchIdx].words;
+  await Promise.all(words.flatMap(({ k, en }) => [
+    (async () => {
+      const key = 'ja:' + k;
+      if (audioCache.has(key)) return;
+      const url = await fetchAudioUrl(k, 'ja');
+      if (url) audioCache.set(key, url);
+    })(),
+    (async () => {
+      const enClean = ttsText(en);
+      const key = 'en:' + enClean;
+      if (audioCache.has(key)) return;
+      const url = await fetchAudioUrl(enClean, 'en');
+      if (url) audioCache.set(key, url);
+    })(),
+  ]));
+}
+
+// Kick off prefetch when the API key is saved
+apiKeyInput.addEventListener('change', () => {
+  localStorage.setItem(STORAGE_KEY, apiKeyInput.value.trim());
+  lastPrefetchedBatch = -1; // reset so prefetch re-runs with new key
+  prefetchBatch(state.batch);
+});
+
+// ── State ──────────────────────────────────────────────────────────────────
+const state = {
+  batch: 0,
+  card: 0,
+  revealed: false,
+  jpFirst: true,
+  pointerDown: false,
+};
+
+// ── DOM refs ───────────────────────────────────────────────────────────────
+const batchListEl  = document.getElementById('batch-list');
+const cardWrap     = document.getElementById('card-wrap');
+const progRow      = document.getElementById('prog-row');
+const progLabel    = document.getElementById('prog-label');
+const progFill     = document.getElementById('prog-fill');
+const btnJP        = document.getElementById('btn-jp');
+const btnEN        = document.getElementById('btn-en');
+
+// ── Build sidebar ──────────────────────────────────────────────────────────
+function buildSidebar() {
+  batchListEl.innerHTML = '';
+  BATCHES.forEach((b, i) => {
+    const el = document.createElement('div');
+    el.className = 'batch-item' + (i === state.batch ? ' active' : '');
+    el.innerHTML = `<div class="b-name">${b.name}</div><div class="b-theme">${b.theme}</div>`;
+    el.addEventListener('click', () => {
+      state.batch = i;
+      state.card = 0;
+      state.revealed = false;
+      buildSidebar();
+      render();
+      prefetchBatch(i);
+    });
+    batchListEl.appendChild(el);
+  });
+}
+
+// ── Render ─────────────────────────────────────────────────────────────────
+function render() {
+  const batch = BATCHES[state.batch];
+  const words = batch.words;
+
+  if (state.card >= words.length) state.card = 0;
+
+  const word = words[state.card];
+  const total = words.length;
+
+  // Progress
+  progRow.style.visibility = 'visible';
+  progLabel.textContent = `${state.card + 1} / ${total}`;
+  progFill.style.width = `${(state.card / total) * 100}%`;
+
+  // What language is currently on screen?
+  // jpFirst=T revealed=F → Japanese  |  jpFirst=T revealed=T → English
+  // jpFirst=F revealed=F → English   |  jpFirst=F revealed=T → Japanese
+  const showingJP = state.jpFirst !== state.revealed;
+
+  const hint = state.revealed ? 'release → next card' : 'press to reveal';
+  const label = showingJP ? 'Japanese' : 'English';
+
+  let inner;
+  if (showingJP) {
+    inner = `
+      <div class="jp-side">
+        <div class="jp-text">
+          ${word.r ? `<ruby>${word.k}<rt>${word.r}</rt></ruby>` : `<span>${word.k}</span>`}
+        </div>
+      </div>`;
+  } else {
+    inner = `<div class="en-side"><span class="en-text">${word.en}</span></div>`;
+  }
+
+  cardWrap.innerHTML = `
+    <div class="card${state.revealed ? ' revealed' : ''}">
+      <span class="c-label">${label}</span>
+      ${inner}
+      <span class="c-hint">${hint}</span>
+    </div>`;
+
+  if (showingJP) speak(word.k, 'ja');
+  else speak(ttsText(word.en), 'en');
+}
+
+// ── Pointer interaction ────────────────────────────────────────────────────
+cardWrap.addEventListener('pointerdown', e => {
+  // ignore right-click
+  if (e.button !== undefined && e.button !== 0) return;
+  if (state.card >= BATCHES[state.batch].words.length) return;
+  state.pointerDown = true;
+  if (!state.revealed) {
+    state.revealed = true;
+    render();
+  }
+});
+
+document.addEventListener('pointerup', () => {
+  if (!state.pointerDown) return;
+  state.pointerDown = false;
+  if (state.card >= BATCHES[state.batch].words.length) return;
+  if (state.revealed) {
+    state.card++;
+    state.revealed = false;
+    render();
+  }
+});
+
+document.addEventListener('pointercancel', () => {
+  state.pointerDown = false;
+});
+
+// ── Language toggle ────────────────────────────────────────────────────────
+btnJP.addEventListener('click', () => {
+  if (state.jpFirst) return;
+  state.jpFirst = true;
+  state.revealed = false;
+  btnJP.classList.add('active');
+  btnEN.classList.remove('active');
+  render();
+});
+
+btnEN.addEventListener('click', () => {
+  if (!state.jpFirst) return;
+  state.jpFirst = false;
+  state.revealed = false;
+  btnEN.classList.add('active');
+  btnJP.classList.remove('active');
+  render();
+});
+
+// ── Init ───────────────────────────────────────────────────────────────────
+buildSidebar();
+render();
+prefetchBatch(state.batch);
+</script>
+</body>
+</html>
