@@ -294,7 +294,7 @@
 <header>
   <div class="logo">🌸 <span>Nihongo</span> Cards</div>
   <div style="display:flex;align-items:center;gap:12px">
-    <input id="api-key-input" type="password" placeholder="OpenAI API key"
+    <input id="api-key-input" type="password" placeholder="Speechify API key"
       style="background:#0d0d14;border:1px solid var(--border);color:var(--text);
              border-radius:8px;padding:5px 10px;font-size:0.8rem;width:200px;outline:none;">
     <div class="toggle-pill">
@@ -508,35 +508,29 @@ const BATCHES = [
 const apiKeyInput = document.getElementById('api-key-input');
 
 // Persist key in localStorage
-const STORAGE_KEY = 'openai_api_key';
+const STORAGE_KEY = 'speechify_api_key';
 if (localStorage.getItem(STORAGE_KEY)) apiKeyInput.value = localStorage.getItem(STORAGE_KEY);
 apiKeyInput.addEventListener('change', () => localStorage.setItem(STORAGE_KEY, apiKeyInput.value.trim()));
 
 let currentAudio = null;
-const audioCache = new Map(); // word.k → blob URL
+const audioCache = new Map();
 let lastPrefetchedBatch = -1;
-
-const TTS_BODY = (text) => JSON.stringify({
-  model: 'gpt-4o-mini-tts',
-  voice: 'coral',
-  input: text,
-  speed: 0.9,
-  instructions: 'Speak as a young Japanese girl, around 18 years old. Your voice is very light, high-pitched, and airy — like an anime character or a young idol singer. Bright and cheerful. Native Japanese accent. Enunciate each word gently and clearly.',
-});
 
 async function fetchAudioUrl(text, lang) {
   const apiKey = apiKeyInput.value.trim();
   if (!apiKey) return null;
-  const body = lang === 'ja'
-    ? TTS_BODY(text)
-    : JSON.stringify({ model: 'gpt-4o-mini-tts', voice: 'coral', input: text, speed: 1.0,
-        instructions: 'Speak naturally as a young woman reading a flashcard aloud.' });
-  const res = await fetch('https://api.openai.com/v1/audio/speech', {
+  const res = await fetch('https://api.sws.speechify.com/v1/audio/speech', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body,
+    body: JSON.stringify({
+      input: text,
+      voice_id: lang === 'ja' ? 'mei' : 'lisa',
+      model: 'simba-multilingual',
+      language: lang === 'ja' ? 'ja-JP' : 'en-US',
+      audio_format: 'mp3',
+    }),
   });
-  if (!res.ok) { console.error('OpenAI TTS error:', res.status, await res.text()); return null; }
+  if (!res.ok) { console.error('Speechify TTS error:', res.status, await res.text()); return null; }
   return URL.createObjectURL(await res.blob());
 }
 
